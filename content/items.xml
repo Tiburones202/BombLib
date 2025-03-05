@@ -1,0 +1,3 @@
+<items gfxroot="gfx/items/" version="1" deathanm2="gfx/death items.anm2">
+    <passive bombs="5" description="#SAD_BOMBS_DESCRIPTION" gfx="collectibles_220_sadbombs.png" id="220" name="Sad Bombs 2" />
+</items>
