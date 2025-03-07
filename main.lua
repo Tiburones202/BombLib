@@ -19,7 +19,9 @@ BombLib:RegisterBombModifier("[BombLib] Sad Bombs",
 		NancyChance = -1, --Whacky. Do not use ATM unless you want an "unfinished" non-vanilla version
 
         --Sad Bombs does not ignore any of these.
-        --
+        
+        IgnoreSmallBomb = false,
+
 		IgnoreKamikaze = false, --Shared with Swallowed M80
 		IgnoreEpicFetus = false,
 		IgnoreWarLocust = false,
@@ -77,6 +79,10 @@ function SadBombs2:TearStuff(tear)
     if checkedTammyTears > 0 then
         checkedTammyTears = checkedTammyTears - 1
         tear.Position = bombPos
+
+        --Actually supposed to collide with all
+        --But that removes tears instantly when colliding with small scatter bombs
+        tear.EntityCollisionClass = EntityCollisionClass.ENTCOLL_ENEMIES
 
         local data = tear:GetData()
         data.tammySpecial = true

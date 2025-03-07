@@ -33,6 +33,8 @@ BombLib.RegisteredBombs = { }
 		FetusChance = BombLib.DefaultFetusChance, --Shared with epic fetus. input a function. luck is offered as a parameter
 		NancyChance = -1, --Not recommended until I find a "vanilla" way to include custom bombs
 
+		IgnoreSmallBomb = false
+
 		IgnoreKamikaze = false, --Shared with Swallowed M80
 		IgnoreEpicFetus = false,
 		IgnoreWarLocust = false,
@@ -57,6 +59,8 @@ function BombLib:RegisterBombModifier(Identifier, BombData)
 
 		FetusChance = BombData.FetusChance or BombLib.DefaultFetusChance,
 		NancyChance = BombData.NancyChance or BombLib.DefaultNancyChance,
+
+		IgnoreSmallBomb = BombData.IgnoreSmallBomb or false,
 
 		IgnoreKamikaze = BombData.IgnoreKamikaze or false,
 		IgnoreEpicFetus = BombData.IgnoreEpicFetus or false,
@@ -180,7 +184,9 @@ BombLib.CallbackHandlers = {
 
 					shouldFire = registeredBomb.HasModifier(player)
 				else
-					shouldFire = bombData[identificator]
+					if ((extraData.IsSmallBomb and not registeredBomb.IgnoreSmallBomb) or not extraData.IsSmallBomb) then
+						shouldFire = bombData[identificator]
+					end
 				end
 			end
 
@@ -379,6 +385,7 @@ function BombLib:BombUpdate(bomb)
 		local extraData = {}
 
 		if bomb:GetData().BombLibIsSmallBomb then
+			extraData.IsSmallBomb = true
 			extraData.SmallExplosion = true
 		end
 
@@ -392,7 +399,8 @@ Mod:AddCallback(ModCallbacks.MC_POST_BOMB_UPDATE, BombLib.BombUpdate)
 --#region Kamikaze
 
 function BombLib:UseKamikaze(_, _, player)
-	player:GetData().BombLibKamikazeUses = (player:GetData().BombLibKamikazeUses or 0) + 1
+	local pData = player:GetData()
+	pData.BombLibKamikazeUses = 1
 end
 
 Mod:AddPriorityCallback(ModCallbacks.MC_PRE_USE_ITEM, CallbackPriority.LATE, BombLib.UseKamikaze, CollectibleType.COLLECTIBLE_KAMIKAZE)
@@ -402,10 +410,11 @@ function BombLib:DetectKamikazeByInit(effect, spawner)
 
     if not player then return end
 
-    if player:GetData().BombLibKamikazeUses then
-        player:GetData().BombLibKamikazeUses = player:GetData().BombLibKamikazeUses - 1
-        if player:GetData().BombLibKamikazeUses <= 0 then
-            player:GetData().BombLibKamikazeUses = nil
+	local pData = player:GetData()
+    if pData.BombLibKamikazeUses then
+        pData.BombLibKamikazeUses = pData.BombLibKamikazeUses - 1
+        if pData.BombLibKamikazeUses <= 0 then
+            pData.BombLibKamikazeUses = nil
         end
 
 		local extraData = {
