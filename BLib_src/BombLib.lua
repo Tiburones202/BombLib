@@ -33,7 +33,8 @@ BombLib.RegisteredBombs = { }
 		FetusChance = BombLib.DefaultFetusChance, --Shared with epic fetus. input a function. luck is offered as a parameter
 		NancyChance = -1, --Not recommended until I find a "vanilla" way to include custom bombs
 
-		IgnoreSmallBomb = false
+		IgnoreSmallBomb = false,
+		IgnoreBomberBoy = true,
 
 		IgnoreKamikaze = false, --Shared with Swallowed M80
 		IgnoreEpicFetus = false,
@@ -61,6 +62,7 @@ function BombLib:RegisterBombModifier(Identifier, BombData)
 		NancyChance = BombData.NancyChance or BombLib.DefaultNancyChance,
 
 		IgnoreSmallBomb = BombData.IgnoreSmallBomb or false,
+		IgnoreBomberBoy = BombData.IgnoreBomberBoy == nil and true or BombData.IgnoreBomberBoy,
 
 		IgnoreKamikaze = BombData.IgnoreKamikaze or false,
 		IgnoreEpicFetus = BombData.IgnoreEpicFetus or false,
@@ -158,33 +160,39 @@ end
 
 BombLib.CallbackHandlers = {
 	[Mod.Callbacks.ID.POST_BOMB_EXPLODE] = function(callbacks, bomb, player, extraData)
+		local bombData = bomb:GetData()
+
+		if bombData.BombLibChecked then goto continue2 end
+		bombData.BombLibChecked = true
+
 		for i = 1, #callbacks do
 			local identificator = callbacks[i].Args[1]
 			local shouldFire = not identificator
 
 			if not shouldFire then
-				local bombData = bomb:GetData()
 				local registeredBomb = Mod.RegisteredBombs[identificator]
 
-				if extraData.IsKamikaze and not registeredBomb.IgnoreKamikaze then
+				if Mod:CheckExplosionType(extraData, registeredBomb, "Kamikaze") then
 					shouldFire = registeredBomb.HasModifier(player)
-				elseif extraData.IsWarLocust and not registeredBomb.IgnoreWarLocust then
+				elseif Mod:CheckExplosionType(extraData, registeredBomb, "WarLocust") then
 					shouldFire = registeredBomb.HasModifier(player)
-				elseif extraData.IsBobsBrain and not registeredBomb.IgnoreBobsBrain then
+				elseif Mod:CheckExplosionType(extraData, registeredBomb, "BobsBrain") then
 					shouldFire = registeredBomb.HasModifier(player)
-				elseif extraData.IsBBF and not registeredBomb.IgnoreBBF then
+				elseif Mod:CheckExplosionType(extraData, registeredBomb, "BBF") then
 					shouldFire = registeredBomb.HasModifier(player)
-				elseif extraData.IsBobsRottenHead and not registeredBomb.IgnoreBobsRottenHead then
+				elseif Mod:CheckExplosionType(extraData, registeredBomb, "BobsRottenHead") then
 					shouldFire = registeredBomb.HasModifier(player)
-				elseif extraData.IsHotPotato and not registeredBomb.IgnoreHotPotato then
+				elseif Mod:CheckExplosionType(extraData, registeredBomb, "HotPotato") then
 					shouldFire = registeredBomb.HasModifier(player)
-				elseif extraData.IsEpicFetus and not registeredBomb.IgnoreEpicFetus then
+				elseif Mod:CheckExplosionType(extraData, registeredBomb, "EpicFetus") then
 					local rng = player:GetCollectibleRNG(CollectibleType.COLLECTIBLE_EPIC_FETUS)
 					if rng:RandomInt(100) > registeredBomb.FetusChance(player.Luck) then goto continue end
 
 					shouldFire = registeredBomb.HasModifier(player)
-				else
-					if ((extraData.IsSmallBomb and not registeredBomb.IgnoreSmallBomb) or not extraData.IsSmallBomb) then
+				else --IgnoreBomberBoy
+					if ((extraData.IsSmallBomb and not registeredBomb.IgnoreSmallBomb) or not extraData.IsSmallBomb)
+						and ((extraData.IsBomberBoy and not registeredBomb.IgnoreBomberBoy) or not extraData.IsBomberBoy)
+					then
 						shouldFire = bombData[identificator]
 					end
 				end
@@ -196,6 +204,7 @@ BombLib.CallbackHandlers = {
 
 			::continue::
 		end
+		::continue2::
 	end,
 
 	[Mod.Callbacks.ID.PRE_PROPER_BOMB_INIT] = function (callbacks, bomb, player)
@@ -269,23 +278,14 @@ end
 
 ---Explosion will (almsot) always be in the same position
 function Mod:IsNotBomberBoyExplosion(effect, spawner)
+	--print(effect.Position.X, spawner.Position.X, effect.Position.Y, spawner.Position.Y)
 	return (effect.Position.X == spawner.Position.X) and (effect.Position.Y == spawner.Position.Y)
 end
 
----Decoy from Best Friend is LITERALLY a bomb (4.2.0, lmfao)
----
----But it doesn't have an explode animation, so I have to check for the last frame manually :P
-function Mod:DecoyExplosion(decoy)
-	if decoy.Variant ~= BombVariant.BOMB_DECOY then return false end
-
-	return (decoy:GetData().BombLibReEnter and 45 or 151) - decoy.FrameCount == 0
+function Mod:CheckExplosionType(extraData, registeredBomb, checkFor)
+	return extraData["Is" .. checkFor] and not registeredBomb["Ignore" .. checkFor]
+			and ((extraData.IsBomberBoy and not registeredBomb.IgnoreBomberBoy) or not extraData.IsBomberBoy)
 end
-
-function Mod:DecoyReInit(decoy)
-	decoy:GetData().BombLibReEnter = decoy.SpawnerEntity == nil --SpawnerEntity is nil for one frame only on re enter (lol?)
-end
-
-Mod:AddCallback(ModCallbacks.MC_POST_BOMB_INIT, Mod.DecoyReInit, BombVariant.BOMB_DECOY)
 
 --endregion
 
@@ -364,35 +364,46 @@ end
 
 ---@param bomb EntityBomb
 function BombLib:BombUpdate(bomb)
-    local player = Mod:TryGetPlayer(bomb)
-
 	if bomb.FrameCount == 1 then
+		local player = Mod:TryGetPlayer(bomb)
+
 		Mod.Callbacks.FireCallback(Mod.Callbacks.ID.PRE_PROPER_BOMB_INIT, bomb, player)
 		BombLib:ProperBombInit(bomb, player)
 		Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_PROPER_BOMB_INIT, bomb, player)
 	end
-
-    local sprite = bomb:GetSprite()
-	if (sprite:IsPlaying("Explode") or Mod:DecoyExplosion(bomb)) then
-		if bomb:HasTearFlags(TearFlags.TEAR_SCATTER_BOMB) then
-            for _, scatterBomb in ipairs(Isaac.FindByType(EntityType.ENTITY_BOMB)) do
-				if scatterBomb.FrameCount == 0 then --Just created bomb
-					scatterBomb:GetData().BombLibIsSmallBomb = true
-				end
-			end
-        end
-
-		local extraData = {}
-
-		if bomb:GetData().BombLibIsSmallBomb then
-			extraData.IsSmallBomb = true
-			extraData.SmallExplosion = true
-		end
-
-		Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_BOMB_EXPLODE, bomb, player, extraData)
-	end
 end
 Mod:AddCallback(ModCallbacks.MC_POST_BOMB_UPDATE, BombLib.BombUpdate)
+
+--#endregion
+
+--#region Bomb Explosion
+
+function BombLib:DetectBombByInit(effect, spawner)
+	local bomb = spawner:ToBomb()
+	if not bomb then return end
+	local player = Mod:TryGetPlayer(bomb)
+
+	if bomb:HasTearFlags(TearFlags.TEAR_SCATTER_BOMB) then
+		for _, scatterBomb in ipairs(Isaac.FindByType(EntityType.ENTITY_BOMB)) do
+			if scatterBomb.FrameCount == 0 then --Just created bomb
+				scatterBomb:GetData().BombLibIsSmallBomb = true
+			end
+		end
+	end
+
+	local extraData = {}
+
+	if bomb:GetData().BombLibIsSmallBomb then
+		extraData.IsSmallBomb = true
+		extraData.SmallExplosion = true
+	end
+
+	if not Mod:IsNotBomberBoyExplosion(effect, bomb) then
+		extraData.IsBomberBoy = true
+	end
+
+	Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_BOMB_EXPLODE, bomb, player, extraData)
+end
 
 --#endregion
 
@@ -431,16 +442,32 @@ end
 
 function BombLib:DetectEpicFetusByInit(effect, spawner)
 	if spawner.Variant == EffectVariant.ROCKET or spawner.Variant == EffectVariant.SMALL_ROCKET then
-		local IsNotBomberBoy = Mod:IsNotBomberBoyExplosion(effect, spawner)
-		if IsNotBomberBoy then
-			local extraData = {
-				IsEpicFetus = true
-			}
+		local extraData = {
+			IsEpicFetus = true,
+			IsBomberBoy = not Mod:IsNotBomberBoyExplosion(effect, spawner),
+		}
 
-			Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_BOMB_EXPLODE, effect, Mod:TryGetPlayer(spawner), extraData)
-		end
+		Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_BOMB_EXPLODE, effect, Mod:TryGetPlayer(spawner), extraData)
 	end
 end
+
+--[[
+function BombLib:DetectEpicFetusByInit(effect, spawner)
+	if spawner.Variant == EffectVariant.ROCKET or spawner.Variant == EffectVariant.SMALL_ROCKET then
+		local extraData = {
+			IsEpicFetus = true
+		}
+
+		print(Mod:IsNotBomberBoyExplosion(effect, spawner))
+
+		if not Mod:IsNotBomberBoyExplosion(effect, spawner) then
+			extraData.IsBomberBoy = true
+		end
+
+		Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_BOMB_EXPLODE, effect, Mod:TryGetPlayer(spawner), extraData)
+	end
+end
+]]
 
 --#endregion
 
@@ -449,16 +476,16 @@ end
 function BombLib:DetectWarLocustByInit(effect, spawner)
 	if spawner.Variant ~= FamiliarVariant.BLUE_FLY or spawner.SubType ~= 1 then return end
 
-	local IsNotBomberBoy = Mod:IsNotBomberBoyExplosion(effect, spawner)
+	local extraData = {
+		IsWarLocust = true,
+		SmallExplosion = true,
+	}
 
-	if IsNotBomberBoy then
-		local extraData = {
-			IsWarLocust = true,
-			SmallExplosion = true,
-		}
-		
-		Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_BOMB_EXPLODE, effect, Mod:TryGetPlayer(spawner), extraData)
+	if not Mod:IsNotBomberBoyExplosion(effect, spawner) then
+		extraData.IsBomberBoy = true
 	end
+	
+	Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_BOMB_EXPLODE, effect, Mod:TryGetPlayer(spawner), extraData)
 end
 
 --#endregion
@@ -468,15 +495,15 @@ end
 function BombLib:DetectBobsBrainByInit(effect, spawner)
 	if spawner.Variant ~= FamiliarVariant.BOBS_BRAIN then return end
 
-	local IsNotBomberBoy = Mod:IsNotBomberBoyExplosion(effect, spawner)
+	local extraData = {
+		IsBobsBrain = true
+	}
 
-	if IsNotBomberBoy then
-		local extraData = {
-			IsBobsBrain = true
-		}
-		
-		Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_BOMB_EXPLODE, effect, Mod:TryGetPlayer(spawner), extraData)
+	if not Mod:IsNotBomberBoyExplosion(effect, spawner) then
+		extraData.IsBomberBoy = true
 	end
+	
+	Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_BOMB_EXPLODE, effect, Mod:TryGetPlayer(spawner), extraData)
 end
 
 --#endregion
@@ -509,15 +536,15 @@ Mod:AddCallback(ModCallbacks.MC_POST_EFFECT_INIT, BombLib.DetectBobsRottenHeadtB
 function BombLib:DetectBBFByInit(effect, spawner)
 	if spawner.Variant ~= FamiliarVariant.BBF then return end
 
-	local IsNotBomberBoy = Mod:IsNotBomberBoyExplosion(effect, spawner)
+	local extraData = {
+		IsBBF = true
+	}
 
-	if IsNotBomberBoy then
-		local extraData = {
-			IsBBF = true
-		}
-
-		Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_BOMB_EXPLODE, effect, Mod:TryGetPlayer(spawner), extraData)
+	if not Mod:IsNotBomberBoyExplosion(effect, spawner) then
+		extraData.IsBomberBoy = true
 	end
+
+	Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_BOMB_EXPLODE, effect, Mod:TryGetPlayer(spawner), extraData)
 end
 
 --#endregion
@@ -557,6 +584,8 @@ function BombLib:CustomBombInteractionsInit(effect)
 	local spawner = effect.SpawnerEntity
 
 	if spawner then
+		BombLib:DetectBombByInit(effect, spawner) --Normal Bomb
+
 		BombLib:DetectKamikazeByInit(effect, spawner) --Kamikaze
 		--BombLib:DetectHotPotatoByInit(effect) --Hot Potato
 		BombLib:DetectEpicFetusByInit(effect, spawner) --Epic Fetus

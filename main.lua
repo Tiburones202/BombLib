@@ -15,12 +15,13 @@ BombLib:RegisterBombModifier("[BombLib] Sad Bombs",
     {
 		HasModifier = function(player) return player:HasCollectible(SadBombs2.ID) end,
 
-		FetusChance = function(luck) return 11 + (3 * luck) end, --Shared with epic fetus. you can input a function to scale with luck. Same as Brimstone Bombs.
+		FetusChance = function(luck) return 11 + (3 * luck) end, --Shared with epic fetus. you can input a function to scale with luck. Same chance as Brimstone Bombs.
 		NancyChance = -1, --Whacky. Do not use ATM unless you want an "unfinished" non-vanilla version
 
         --Sad Bombs does not ignore any of these.
         
         IgnoreSmallBomb = false,
+        IgnoreBomberBoy = true,
 
 		IgnoreKamikaze = false, --Shared with Swallowed M80
 		IgnoreEpicFetus = false,
