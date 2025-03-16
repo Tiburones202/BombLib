@@ -46,11 +46,11 @@ local bombPos = nil
 local checkedTammyTears = 0
 local scatter = nil
 local warLocust = nil
-function SadBombs2:ExplodeSadBombs2(bomb, player, extraData)
-    bombPos = bomb.Position
+function SadBombs2:ExplodeSadBombs2(effect, player, extraData)
+    bombPos = effect.Position
     checkedTammyTears = SadBombs2.TammyTears
 
-    scatter = bomb:GetData().BombLibIsSmallBomb
+    scatter = extraData.IsSmallBomb and not extraData.IsWarLocust
     warLocust = extraData.IsWarLocust
 
     player:UseActiveItem(CollectibleType.COLLECTIBLE_TAMMYS_HEAD, UseFlag.USE_NOANIM, -1)
@@ -107,6 +107,16 @@ function SadBombs2:TearStuff2(tear)
 end
 
 SadBombs2:AddCallback(ModCallbacks.MC_POST_TEAR_UPDATE, SadBombs2.TearStuff2)
+
+function SadBombs2:TakeDMGTest(Entity, Amount, DamageFlags, source, CountdownFrames, extraData)
+    print('poop')
+
+    if extraData.WillDie then
+        print('dead')
+    end
+end
+
+BombLibCallbacks.AddCallback(BombLibCallbacks.ID.ENTITY_TAKE_EXPLOSION_DMG, SadBombs2.TakeDMGTest, "[BombLib] Sad Bombs")
 
 --lag the game
 --[[
