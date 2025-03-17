@@ -437,6 +437,17 @@ local function InitFunctions()
 			Mod.Callbacks.FireCallback(Mod.Callbacks.ID.PRE_PROPER_BOMB_INIT, bomb, player)
 			BombLib:ProperBombInit(bomb, player)
 			Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_PROPER_BOMB_INIT, bomb, player)
+		else
+			local sprite = bomb:GetSprite()
+			if sprite:IsPlaying("Explode") then --Need to do this for scatter bombs.
+				if bomb:HasTearFlags(TearFlags.TEAR_SCATTER_BOMB) then
+					for _, scatterBomb in ipairs(Isaac.FindByType(EntityType.ENTITY_BOMB)) do
+						if scatterBomb.FrameCount == 0 then --Just created bomb
+							scatterBomb:GetData().BombLibIsSmallBomb = true
+						end
+					end
+				end
+			end
 		end
 	end
 	AddCallback(ModCallbacks.MC_POST_BOMB_UPDATE, BombLib.BombUpdate)
@@ -448,14 +459,6 @@ local function InitFunctions()
 	function BombLib:DetectBombByInit(effect, spawner)
 		local bomb = spawner:ToBomb()
 		if not bomb then return end
-
-		if bomb:HasTearFlags(TearFlags.TEAR_SCATTER_BOMB) then
-			for _, scatterBomb in ipairs(Isaac.FindByType(EntityType.ENTITY_BOMB)) do
-				if scatterBomb.FrameCount == 0 then --Just created bomb
-					scatterBomb:GetData().BombLibIsSmallBomb = true
-				end
-			end
-		end
 
 		local extraData = {}
 
