@@ -33,7 +33,8 @@ BombLib:RegisterBombModifier("[BombLib] Sad Bombs",
 		IgnoreHotPotato = false,
 
 		Variant = SadBombs2.Variant,
-		Path = "gfx/items/pick ups/bombs/sad",
+		Anm2Path = "gfx/items/pick ups/bombs/sad",
+        PngPath = "gfx/items/pick ups/bombs/costumes/sad",
 		AddPathSuffixOnGolden = true,
 
 		CopperBombSprite = false, --Fiend Folio adds it on their side
@@ -60,6 +61,8 @@ BombLibCallbacks.AddCallback(BombLibCallbacks.ID.POST_BOMB_EXPLODE, SadBombs2.Ex
 
 --Render tears on top
 --Never tried doing this so this sucks. ignore it, it's not like it's something for the library
+
+--[[
 function SadBombs2:RenderSadBombs2(bomb)
     local anm2Path = "gfx/items/pick ups/bombs/tears" .. bomb:GetData().BombLibEndingString
 
@@ -74,7 +77,7 @@ function SadBombs2:RenderSadBombs2(bomb)
     --spriteTears:Render(Isaac.WorldToScreen(bomb.Position + Vector(0, 1.5)))
 end
 
-SadBombs2:AddCallback(ModCallbacks.MC_POST_BOMB_RENDER, SadBombs2.RenderSadBombs2, SadBombs2.Variant)
+SadBombs2:AddCallback(ModCallbacks.MC_POST_BOMB_RENDER, SadBombs2.RenderSadBombs2, SadBombs2.Variant)]]
 
 function SadBombs2:TearStuff(tear)
     if checkedTammyTears > 0 then

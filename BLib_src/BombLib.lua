@@ -118,7 +118,7 @@ local function InitFunctions()
 				end
 			end
 		else
-			for i = 0, Mod.game:GetNumPlayers() - 1 do
+			for i = 0, game:GetNumPlayers() - 1 do
 				if func(Isaac.GetPlayer(i), i) then
 					return true
 				end
@@ -130,6 +130,16 @@ local function InitFunctions()
 	function Mod:IsNotBomberBoyExplosion(effect, spawner)
 		--print(effect.Position.X, spawner.Position.X, effect.Position.Y, spawner.Position.Y)
 		return (effect.Position.X == spawner.Position.X) and (effect.Position.Y == spawner.Position.Y)
+	end
+
+	--Gets the bomb size
+	--2 for Normal, 0 for Scatter Bomb, 
+	--3 for Mr. Mega and Best Friend, and 1 for Mr. Mega Scatter Bombs
+	function Mod:GetBombSize(bomb)
+		if bomb.Variant == BombVariant.BOMB_DECOY then return 3 end --Best Friend doesn't follow the rules
+
+		local file = bomb:GetSprite():GetFilename()
+		return tonumber(file:sub(file:len()-5, -6))
 	end
 
 	function Mod:CheckExplosionType(extraData, registeredBomb, checkFor)
@@ -349,14 +359,51 @@ local function InitFunctions()
 			IgnoreHotPotato = BombData.IgnoreHotPotato or false,
 
 			Variant = BombData.Variant or nil,
-			Path = BombData.Path or nil,
+			Anm2Path = BombData.Anm2Path or nil,
+			PngPath = BombData.PngPath or nil, --game stupid and can't get png path :c
+
 			AddPathSuffixOnGolden = BombData.AddPathSuffixOnGolden or false,
 
 			CopperBombSprite = BombData.CopperBombSprite or false,
 		}
+
+		--#region Dynamic Bomb HUD Compatibility
+
+		local DBHUDCompat = BombData.DynamicBombHUDCompat
+		if DBHUDCompat then
+			CustomBombHUDIcons:AddPriorityBombIcon(DBHUDCompat.Priority or CustomBombHUDIcons.BombPriority.DEFAULT,
+    		{
+    		    Name = DBHUDCompat.Name,
+
+    		    Anm2 = DBHUDCompat.Anm2,
+    		    GoldAnm2 = DBHUDCompat.GoldAnm2,
+    		    CopperAnm2 = DBHUDCompat.CopperAnm2,
+    		    FrameName = DBHUDCompat.FrameName,
+    		    Frame = DBHUDCompat.Frame,
+
+    		    Condition = DBHUDCompat.Condition
+    		})
+		end
+
+		--#endregion
 	end
 
 	--#region Bomb States
+
+	function BombLib:ReloadSpecialSkins(bomb, sprite, bombData, isCopper)
+		local spritesheetSuffix
+
+		if isCopper then
+			spritesheetSuffix = "_copper"
+		elseif bombData.AddPathSuffixOnGolden and bomb:HasTearFlags(TearFlags.TEAR_GOLDEN_BOMB) then
+			spritesheetSuffix = "_gold"
+		end
+
+		if spritesheetSuffix then
+			sprite:ReplaceSpritesheet(0, bombData.PngPath .. spritesheetSuffix .. ".png")
+			sprite:LoadGraphics()
+		end
+	end
 
 	function BombLib:ChangeVariant(bomb, identifier, bombData)
 		local variant = bombData.Variant
@@ -366,32 +413,26 @@ local function InitFunctions()
 	    local file = sprite:GetFilename()
 		local endingString = file:sub(file:len()-5)
 
-	    if (isCopper or bomb.Variant == 0) and variant then --Change skin if normal bomb
-			if not isCopper then 
+	    if isCopper or bomb.Variant == 0 then --Change skin if normal bomb
+			if variant and not isCopper then 
 				bomb.Variant = variant
 			end
 
-			local path = bombData.Path
+			local path = bombData.Anm2Path
 
-			if not path then goto continue end
+			if path then
+				local anim = sprite:GetAnimation()
 
-	        local spritesheetSuffix = ""
+			    sprite:Load(path .. endingString, true)
 
-			if isCopper then
-				spritesheetSuffix = "_copper"
-			elseif bombData.AddPathSuffixOnGolden and bomb:HasTearFlags(TearFlags.TEAR_GOLDEN_BOMB) then
-				spritesheetSuffix = "_gold"
+				Mod:ReloadSpecialSkins(bomb, sprite, bombData, isCopper)
+
+			    sprite:Play(anim, true)
 			end
-
-			local anim = sprite:GetAnimation()
-
-	        sprite:Load(path .. spritesheetSuffix .. endingString, true)
-	        sprite:Play(anim, true)
 	    end
 
 		::continue::
 
-		bomb:GetData().BombLibEndingString = endingString
 	    bomb:GetData()[identifier] = true
 	end
 
@@ -399,6 +440,8 @@ local function InitFunctions()
 	function BombLib:ProperBombInit(bomb, player)
 	    if not player then return end
 	    if BombLib.BLACKLISTED_VARIANTS[bomb.Variant] then return end
+
+		Mod.Callbacks.FireCallback(Mod.Callbacks.ID.PRE_PROPER_BOMB_INIT, bomb, player)
 
 		local HasNancy = player:HasCollectible(CollectibleType.COLLECTIBLE_NANCY_BOMBS)
 		local NancyRNG = HasNancy and player:GetCollectibleRNG(CollectibleType.COLLECTIBLE_NANCY_BOMBS) or nil
@@ -427,6 +470,8 @@ local function InitFunctions()
 
 			::continue::
 		end
+
+		Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_PROPER_BOMB_INIT, bomb, player)
 	end
 
 	---@param bomb EntityBomb
@@ -434,20 +479,7 @@ local function InitFunctions()
 		if bomb.FrameCount == 1 then
 			local player = Mod:TryGetPlayer(bomb)
 
-			Mod.Callbacks.FireCallback(Mod.Callbacks.ID.PRE_PROPER_BOMB_INIT, bomb, player)
 			BombLib:ProperBombInit(bomb, player)
-			Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_PROPER_BOMB_INIT, bomb, player)
-		else
-			local sprite = bomb:GetSprite()
-			if sprite:IsPlaying("Explode") then --Need to do this for scatter bombs.
-				if bomb:HasTearFlags(TearFlags.TEAR_SCATTER_BOMB) then
-					for _, scatterBomb in ipairs(Isaac.FindByType(EntityType.ENTITY_BOMB)) do
-						if scatterBomb.FrameCount == 0 then --Just created bomb
-							scatterBomb:GetData().BombLibIsSmallBomb = true
-						end
-					end
-				end
-			end
 		end
 	end
 	AddCallback(ModCallbacks.MC_POST_BOMB_UPDATE, BombLib.BombUpdate)
@@ -462,7 +494,7 @@ local function InitFunctions()
 
 		local extraData = {}
 
-		if bomb:GetData().BombLibIsSmallBomb then
+		if Mod:GetBombSize(bomb) < 2 then --Mini bomb
 			extraData.IsSmallBomb = true
 			extraData.SmallExplosion = true
 		end
@@ -676,7 +708,7 @@ local function InitFunctions()
 			WillDie = WillDie,
 		}
 
-		if source:GetData().BombLibIsSmallBomb then
+		if Mod:GetBombSize(bomb) < 2 then --Mini bomb
 			extraData.IsSmallBomb = true
 			extraData.SmallExplosion = true
 		end
@@ -706,5 +738,49 @@ end
 BombLib = InitMod()
 Mod = BombLib
 InitFunctions()
+
+--#region Scheduler
+
+--[[
+local function schedulerInit()
+	local scheduler = {}
+	local Mod = BombLib
+	scheduler.ScheduleData = {}
+	---
+	---@param delay integer
+	---@param func function
+	---@param args any
+	---@function
+	---@scope Scheduler
+	function scheduler.Schedule(delay, func, args)
+		table.insert(scheduler.ScheduleData, {
+			Time = game:GetFrameCount(),
+			Delay = delay,
+			Call = func,
+			Args = args or {},
+		})
+	end
+	
+	Mod:AddCallback(ModCallbacks.MC_POST_UPDATE, function()
+		local time = game:GetFrameCount()
+		for i = #scheduler.ScheduleData, 1, -1 do
+			local data = scheduler.ScheduleData[i]
+			if data.Time + data.Delay <= time then
+				table.remove(scheduler.ScheduleData, i)
+				data.Call(table.unpack(data.Args))
+			end
+		end
+	end)
+	
+	Mod:AddCallback(ModCallbacks.MC_PRE_GAME_EXIT, function()
+		scheduler.ScheduleData = {}
+	end)
+	
+	return scheduler
+end
+
+BombLib.Scheduler = schedulerInit()]]
+
+--#endregion
 
 --#endregion
