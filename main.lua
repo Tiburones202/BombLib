@@ -33,8 +33,7 @@ BombLib:RegisterBombModifier("[BombLib] Sad Bombs",
 		IgnoreHotPotato = false,
 
 		Variant = SadBombs2.Variant,
-		Anm2Path = "gfx/items/pick ups/bombs/sad",
-        PngPath = "gfx/items/pick ups/bombs/costumes/sad",
+		Path = "gfx/items/pick ups/bombs/sad",
 		AddPathSuffixOnGolden = true,
 
 		CopperBombSprite = false, --Fiend Folio adds it on their side

@@ -128,7 +128,6 @@ local function InitFunctions()
 
 	---Explosion will (almsot) always be in the same position
 	function Mod:IsNotBomberBoyExplosion(effect, spawner)
-		--print(effect.Position.X, spawner.Position.X, effect.Position.Y, spawner.Position.Y)
 		return (effect.Position.X == spawner.Position.X) and (effect.Position.Y == spawner.Position.Y)
 	end
 
@@ -136,6 +135,7 @@ local function InitFunctions()
 	--2 for Normal, 0 for Scatter Bomb, 
 	--3 for Mr. Mega and Best Friend, and 1 for Mr. Mega Scatter Bombs
 	function Mod:GetBombSize(bomb)
+		if not bomb then return nil end
 		if bomb.Variant == BombVariant.BOMB_DECOY then return 3 end --Best Friend doesn't follow the rules
 
 		local file = bomb:GetSprite():GetFilename()
@@ -359,8 +359,7 @@ local function InitFunctions()
 			IgnoreHotPotato = BombData.IgnoreHotPotato or false,
 
 			Variant = BombData.Variant or nil,
-			Anm2Path = BombData.Anm2Path or nil,
-			PngPath = BombData.PngPath or nil, --game stupid and can't get png path :c
+			Path = BombData.Path or nil,
 
 			AddPathSuffixOnGolden = BombData.AddPathSuffixOnGolden or false,
 
@@ -389,43 +388,37 @@ local function InitFunctions()
 	end
 
 	--#region Bomb States
-
-	function BombLib:ReloadSpecialSkins(bomb, sprite, bombData, isCopper)
-		local spritesheetSuffix
-
-		if isCopper then
-			spritesheetSuffix = "_copper"
-		elseif bombData.AddPathSuffixOnGolden and bomb:HasTearFlags(TearFlags.TEAR_GOLDEN_BOMB) then
-			spritesheetSuffix = "_gold"
-		end
-
-		if spritesheetSuffix then
-			sprite:ReplaceSpritesheet(0, bombData.PngPath .. spritesheetSuffix .. ".png")
-			sprite:LoadGraphics()
-		end
+	function BombLib:IsCopperBomb(bomb, bombData) 
+		return bombData.CopperBombSprite and FiendFolio and (bomb.Variant == FiendFolio.BOMB.COPPER)
 	end
 
 	function BombLib:ChangeVariant(bomb, identifier, bombData)
 		local variant = bombData.Variant
-		local isCopper = CopperBombSprite and FiendFolio and (bomb.Variant == FiendFolio.BOMB.COPPER)
+		local isCopper = BombLib:IsCopperBomb(bomb, bombData) 
 
 		local sprite = bomb:GetSprite()
 	    local file = sprite:GetFilename()
 		local endingString = file:sub(file:len()-5)
 
-	    if isCopper or bomb.Variant == 0 then --Change skin if normal bomb
+	    if isCopper or bomb.Variant == 0 or bomb.Variant == variant then --Change skin if normal bomb
 			if variant and not isCopper then 
 				bomb.Variant = variant
 			end
 
-			local path = bombData.Anm2Path
+			local path = bombData.Path
 
 			if path then
 				local anim = sprite:GetAnimation()
 
-			    sprite:Load(path .. endingString, true)
+				local spritesheetSuffix = ''
 
-				Mod:ReloadSpecialSkins(bomb, sprite, bombData, isCopper)
+				if isCopper then
+					spritesheetSuffix = "_copper"
+				elseif bombData.AddPathSuffixOnGolden and bomb:HasTearFlags(TearFlags.TEAR_GOLDEN_BOMB) then
+					spritesheetSuffix = "_gold"
+				end
+
+			    sprite:Load(path .. spritesheetSuffix .. endingString, true)
 
 			    sprite:Play(anim, true)
 			end
@@ -692,11 +685,8 @@ local function InitFunctions()
 		if not source then goto continue end
 		if BombLib.BLACKLISTED_VARIANTS[source.Variant] then goto continue end
 
-		print(source.Type, source.Variant, source.SubType)
-
 		local WillDie = false
 		if Entity:ToPlayer() then
-			print(Amount)
 			local player = Entity:ToPlayer()
 			local healthLeft = ((player:GetHearts() - player:GetRottenHearts() * 2) + player:GetSoulHearts() + player:GetRottenHearts() +
 				player:GetEternalHearts() + player:GetBoneHearts())
@@ -708,7 +698,7 @@ local function InitFunctions()
 			WillDie = WillDie,
 		}
 
-		if Mod:GetBombSize(bomb) < 2 then --Mini bomb
+		if Mod:GetBombSize(source) < 2 then --Mini bomb
 			extraData.IsSmallBomb = true
 			extraData.SmallExplosion = true
 		end
