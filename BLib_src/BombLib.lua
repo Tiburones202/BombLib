@@ -311,7 +311,11 @@ local function InitFunctions()
 				local shouldFire = (not identificator) or Mod:ShouldFireStandard(identificator, extraData, source)
 
 				if shouldFire then
-					callbacks[i].Function(BombLib, Entity, Amount, DamageFlags, source, CountdownFrames, extraData)
+					local stop = callbacks[i].Function(BombLib, Entity, Amount, DamageFlags, source, CountdownFrames, extraData)
+
+					if stop ~= nil then
+						return stop
+					end
 				end
 			end
 		end,
@@ -702,7 +706,11 @@ local function InitFunctions()
 			extraData.SmallExplosion = true
 		end
 
-		Mod.Callbacks.FireCallback(Mod.Callbacks.ID.ENTITY_TAKE_EXPLOSION_DMG, Entity, Amount, DamageFlags, source, CountdownFrames, extraData)
+		local stop = Mod.Callbacks.FireCallback(Mod.Callbacks.ID.ENTITY_TAKE_EXPLOSION_DMG, Entity, Amount, DamageFlags, source, CountdownFrames, extraData)
+
+		if stop ~= nil then
+			return stop
+		end
 
 		::continue::
 	end
