@@ -408,8 +408,6 @@ local function InitFunctions()
 			local path = bombData.Path
 
 			if path then
-				local anim = sprite:GetAnimation()
-
 				local spritesheetSuffix = ''
 
 				if isCopper then
@@ -418,8 +416,9 @@ local function InitFunctions()
 					spritesheetSuffix = "_gold"
 				end
 
-			    sprite:Load(path .. spritesheetSuffix .. endingString, true)
+				local anim = sprite:GetAnimation()
 
+			    sprite:Load(path .. spritesheetSuffix .. endingString, true)
 			    sprite:Play(anim, true)
 			end
 	    end
