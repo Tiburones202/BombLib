@@ -246,7 +246,7 @@ local function InitFunctions()
 
 		ENTITY_TAKE_EXPLOSION_DMG = 3, 
 
-		POST_EXPLOSION_DESTROY_GRID = 4,
+		POST_EXPLOSION_DESTROY_GRID_ROCK = 4,
 	}
 
 	for _, v in pairs(BombLib.Callbacks.ID) do
@@ -369,7 +369,7 @@ local function InitFunctions()
 			end
 		end,
 
-		[Mod.Callbacks.ID.POST_EXPLOSION_DESTROY_GRID] = function (callbacks, gridEnt, effect, bomb, player, extraData)
+		[Mod.Callbacks.ID.POST_EXPLOSION_DESTROY_GRID_ROCK] = function (callbacks, gridEnt, effect, bomb, player, extraData)
 			for i = 1, #callbacks do --No extra parameters
 				local limits = callbacks[i].Args
 				local shouldFire = (not limits[1]) or Mod:ShouldFireStandard(limits[1], extraData, effect, player)
@@ -750,8 +750,9 @@ local function InitFunctions()
 		for i = 0, room:GetGridSize() do
 			local gridEnt = room:GetGridEntity(i)
 			if gridEnt then
-				gType = gridEnt:GetType()
-				if gridEnt.State == 2 and gType ~= GridEntityType.GRID_WALL and gType ~= GridEntityType.GRID_DECORATION then
+				gridEnt = gridEnt:ToRock()
+
+				if gridEnt and gridEnt.State == 2 then
 					local idx = gridEnt:GetSaveState().SpawnSeed
 
 					if not rockEffectIndexes[idx] then
@@ -760,7 +761,7 @@ local function InitFunctions()
 
 					if RGONON then
 						if rockEffectIndexes[idx].TimeDoneOn == game:GetFrameCount() then
-							Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_EXPLOSION_DESTROY_GRID, gridEnt, effect, spawner, player, {})
+							Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_EXPLOSION_DESTROY_GRID_ROCK, gridEnt, effect, spawner, player, {})
 						end
 					else
 						rockEffectIndexes[idx].TimeDoneOn = game:GetFrameCount()
@@ -828,7 +829,7 @@ local function InitFunctions()
 					if eHash == GetPtrHash(effect) then
 						effect = effect:ToEffect()
 
-						Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_EXPLOSION_DESTROY_GRID, gridEnt, effect, effect.SpawnerEntity, Mod:TryGetPlayer(spawner), {})
+						Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_EXPLOSION_DESTROY_GRID_ROCK, gridEnt, effect, effect.SpawnerEntity, Mod:TryGetPlayer(spawner), {})
 					end
 				end
 			end
@@ -843,7 +844,8 @@ local function InitFunctions()
 			for i = 0, room:GetGridSize() do
 				local gridEnt = room:GetGridEntity(i)
 				if gridEnt then
-					if gridEnt.State == 2 then --TODO: try not to break with epiphany pleaseee
+					gridEnt = gridEnt:ToRock()
+					if gridEnt and gridEnt.State == 2 then --TODO: try not to break with epiphany pleaseee
 						local idx = gridEnt:GetSaveState().SpawnSeed
 
 						if not rockEffectIndexes[idx] then
