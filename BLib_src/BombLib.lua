@@ -765,23 +765,18 @@ local function InitFunctions()
 
 		if not player then return end
 
-		player = player:ToPlayer()
-
-		if not player then return end
-
-		local extraData = {}
+		local extraData
 
 		extraData = BombLib:InitFunc(effect, spawner, player, BombLib.DetectBombByInit, extraData) --Normal Bomb
-
 		extraData = BombLib:InitFunc(effect, spawner, player, BombLib.DetectKamikazeByInit, extraData) --Kamikaze
-
-		--BombLib:DetectHotPotatoByInit(effect) --Hot Potato
 		extraData = BombLib:InitFunc(effect, spawner, player, BombLib.DetectEpicFetusByInit, extraData) --Epic Fetus
 		if spawner.Type == EntityType.ENTITY_FAMILIAR then
 			extraData = BombLib:InitFunc(effect, spawner, player, BombLib.DetectBobsBrainByInit, extraData) --Bob's Brain
 			extraData = BombLib:InitFunc(effect, spawner, player, BombLib.DetectWarLocustByInit, extraData) --War Locust
 			extraData = BombLib:InitFunc(effect, spawner, player, BombLib.DetectBBFByInit, extraData) --BBF
 		end
+
+		if extraData == nil then return end --No explosion that counts, do nothing.
 
 		local room = game:GetRoom()
 		for i = 0, room:GetGridSize() do

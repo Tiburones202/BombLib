@@ -1,8 +1,12 @@
 TODO:
     * IMPORATNT:
-        * Documentation [X]
+        ** Documentation [X]
+
+    * HIGH PRIORITY:
+        ** Nothing! :D
+
 	* MID PRIORITY:
-        ** ENTITY_TAKE_EXPLOSION_DMG:
+        ** ENTITY_TAKE_EXPLOSION_DMG [~]:
             *** Kamikaze [X]
             *** EpicFetus [X]
             *** WarLocust [X]
@@ -11,9 +15,29 @@ TODO:
             *** BBF [X]
             *** HotPotato [?]
 
-        ** POST_EXPLOSION_DESTROY_GRID_ROCK:
+        ** POST_EXPLOSION_DESTROY_GRID_ROCK [~]:
             *** BobsRottenHead [?]
             *** HotPotato [?]
 
+        ** More modifier examples [~]
+            ** Using POST_BOMB_EXPLODE [OK] [Sad Bombs Recreation]
+            ** Using ENTITY_TAKE_EXPLOSION_DMG [X]
+            ** Using POST_EXPLOSION_DESTROY_GRID_ROCK [X]
+
     * LOW PRIORITY:
-       ** Base game callbacks with modifier as limiters [Later?]
+        ** Base game callbacks with modifier as limiters [X] [Later?]:
+            -BASE GAME:
+                *** MC_POST_BOMB_UPDATE [X]
+                *** MC_POST_BOMB_RENDER [?]
+                *** MC_PRE_BOMB_COLLISION [X]
+            -RGON:
+                *** MC_POST_BOMB_COLLISION [X]
+                *** MC_PRE_BOMB_RENDER [?]
+                *** MC_PRE_BOMB_GRID_COLLISION [X]
+                *** MC_BOMB_GRID_COLLISION [X]
+                *** MC_PRE_BOMB_UPDATE [X]
+
+        ** Preload Spite [?]
+            *** Changing variant in MC_PRE_ENTITY_SPAWN
+
+        ** ACTUAL Nancy Bombs Support [?]
