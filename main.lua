@@ -102,6 +102,14 @@ end
 
 SadBombs2:AddCallback(ModCallbacks.MC_POST_TEAR_UPDATE, SadBombs2.TearStuff2)
 
+function SadBombs2:Help(gridEnt, _, _, player)
+    local maw = player:SpawnMawOfVoid(60)
+    maw.DisableFollowParent = true
+    maw.Position = gridEnt.Position
+    maw.Radius = 30
+end
+BombLibCallbacks.AddCallback(BombLibCallbacks.ID.POST_EXPLOSION_DESTROY_GRID_ROCK, SadBombs2.Help, "[BombLib] Sad Bombs")
+
 --lag the game
 --[[
 SadBombs2:AddCallback(ModCallbacks.MC_POST_RENDER, function ()

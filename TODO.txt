@@ -15,10 +15,6 @@ TODO:
             *** BBF [X]
             *** HotPotato [?]
 
-        ** POST_EXPLOSION_DESTROY_GRID_ROCK [~]:
-            *** BobsRottenHead [?]
-            *** HotPotato [?]
-
         ** More modifier examples [~]
             ** Using POST_BOMB_EXPLODE [OK] [Sad Bombs Recreation]
             ** Using ENTITY_TAKE_EXPLOSION_DMG [X]
