@@ -42,24 +42,34 @@ BombLib:RegisterBombModifier("[BombLib] Sad Bombs",
 
 local BombLibCallbacks = BombLib.Callbacks
 
-local bombPos = nil
-local checkedTammyTears = 0
-local scatter = nil
-local warLocust = nil
 function SadBombs2:ExplodeSadBombs2(effect, player, extraData)
-    bombPos = effect.Position
-    checkedTammyTears = SadBombs2.TammyTears
-
-    scatter = extraData.IsSmallBomb and not extraData.IsWarLocust
-    warLocust = extraData.IsWarLocust
-
     player:UseActiveItem(CollectibleType.COLLECTIBLE_TAMMYS_HEAD, UseFlag.USE_NOANIM, -1)
+
+    for _, tear in ipairs(Isaac.FindByType(EntityType.ENTITY_TEAR)) do
+        if tear.FrameCount == 0 then
+            local data = tear:GetData()
+            if not data.tammySpecial then
+                tear.Position = effect.Position
+
+                --Actually supposed to collide with all
+                --But that removes tears instantly when colliding with small scatter bombs
+                tear.EntityCollisionClass = EntityCollisionClass.ENTCOLL_ENEMIES
+
+                data.tammySpecial = true
+                if extraData.IsWarLocust then
+                    data.WarLocust = true
+                elseif extraData.IsSmallBomb then
+                    data.Scatter = true
+                end
+            end
+        end
+    end
 end
 
 BombLibCallbacks.AddCallback(BombLibCallbacks.ID.POST_BOMB_EXPLODE, SadBombs2.ExplodeSadBombs2, "[BombLib] Sad Bombs")
 
 --Render tears on top
---Never tried doing this so this sucks. ignore it, it's not like it's something for the library
+--Never tried doing this so this sucks. ignore it, it's not like it's something specific for the library
 
 --[[
 function SadBombs2:RenderSadBombs2(bomb)
@@ -78,24 +88,6 @@ end
 
 SadBombs2:AddCallback(ModCallbacks.MC_POST_BOMB_RENDER, SadBombs2.RenderSadBombs2, SadBombs2.Variant)]]
 
-function SadBombs2:TearStuff(tear)
-    if checkedTammyTears > 0 then
-        checkedTammyTears = checkedTammyTears - 1
-        tear.Position = bombPos
-
-        --Actually supposed to collide with all
-        --But that removes tears instantly when colliding with small scatter bombs
-        tear.EntityCollisionClass = EntityCollisionClass.ENTCOLL_ENEMIES
-
-        local data = tear:GetData()
-        data.tammySpecial = true
-        data.Scatter = scatter
-        data.WarLocust = warLocust
-    end
-end
-
-SadBombs2:AddCallback(ModCallbacks.MC_POST_TEAR_INIT, SadBombs2.TearStuff)
-
 function SadBombs2:TearStuff2(tear)
     if tear.FrameCount == 1 and tear:GetData().tammySpecial then
         if tear:GetData().Scatter then 
@@ -109,16 +101,6 @@ function SadBombs2:TearStuff2(tear)
 end
 
 SadBombs2:AddCallback(ModCallbacks.MC_POST_TEAR_UPDATE, SadBombs2.TearStuff2)
-
-function SadBombs2:TakeDMGTest(Entity, Amount, DamageFlags, source, CountdownFrames, extraData)
-    print('poop')
-
-    if extraData.WillDie then
-        print('dead')
-    end
-end
-
-BombLibCallbacks.AddCallback(BombLibCallbacks.ID.ENTITY_TAKE_EXPLOSION_DMG, SadBombs2.TakeDMGTest, "[BombLib] Sad Bombs")
 
 --lag the game
 --[[

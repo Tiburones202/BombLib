@@ -3,11 +3,6 @@
 --BombLib Created by [No need to credit directly on the mod page. Though, a thanks would be appreciated]:
 -- * Tiburones202
 
---[[
-	--TODO:
-	* Base game callbacks with modifier as limiters [Later?]
-]]
-
 --Debug [DO NOT MODIFY]
 local VERSION = 1
 local FORCE_VERSION_UPDATE = true
@@ -23,7 +18,12 @@ local RGON_AVOID = true
 local RGONON = (REPENTOGON ~= nil) and not RGON_AVOID
 
 local function InitMod()
+	local oldMod
+	if EID then oldMod = EID._currentMod end
+
 	local BombLib = RegisterMod("BombLibrary", 1)
+
+	if EID then EID._currentMod = oldMod end
 
 	BombLib.Version = VERSION
 
@@ -114,7 +114,7 @@ local function InitFunctions()
 	BombLib.SIZE_TO_EXPLOSION_SCALE = {
 		[BLEnum.BOMB_SIZES.SMALL_BOMB] = Vector(0.65, 0.65),
 		[BLEnum.BOMB_SIZES.SMALL_MR_MEGA_BOMB] = Vector(0.65, 0.65),
-		[BLEnum.BOMB_SIZES.REGULAR_BOMB] = Vector(1, 1),
+		[BLEnum.BOMB_SIZES.REGULAR_BOMB] = Vector.One,
 		[BLEnum.BOMB_SIZES.MR_MEGA_BOMB] = Vector(1.4, 1.4),
 		[BLEnum.BOMB_SIZES.GIGA_BOMB] = Vector(2, 2),
 	}
@@ -173,8 +173,8 @@ local function InitFunctions()
 
 	--Calculates de resulting explosion size (scale vector) getting the spawner bomb size
 	function Mod:GetExplosionScale(bomb)
-		if not bomb:ToBomb() then bomb = bomb.SpawnerEntity end
-		return BombLib.SIZE_TO_EXPLOSION_SCALE[Mod:GetBombSize(bomb)]
+		if not bomb:ToBomb() then bomb = bomb.SpawnerEntity end --Explsion effect to bomb
+		return BombLib.SIZE_TO_EXPLOSION_SCALE[Mod:GetBombSize(bomb)] or Vector.One
 	end
 
 	--Gets the bomb size
@@ -182,11 +182,22 @@ local function InitFunctions()
 	--3 for Mr. Mega and Best Friend, 1 for Mr. Mega Scatter Bombs 
 	--and 4 for Giga Bombs
 	function Mod:GetBombSize(bomb)
-		if not bomb then return nil end
+		if not bomb then return BLEnum.BOMB_SIZES.REGULAR_BOMB end
 		if BombLib.SET_BOMB_SIZES[bomb.Variant] then return BombLib.SET_BOMB_SIZES[bomb.Variant] end --Set sizes
 
 		local file = bomb:GetSprite():GetFilename()
-		return tonumber(file:sub(file:len()-5, -6)) or 2
+		return tonumber(file:sub(file:len()-5, -6)) or BLEnum.BOMB_SIZES.REGULAR_BOMB
+	end
+
+	function Mod:WillEntityDie(Entity, Amount)
+		if Entity:ToPlayer() then
+			local player = Entity:ToPlayer()
+			local healthLeft = ((player:GetHearts() - player:GetRottenHearts() * 2) + player:GetSoulHearts() + player:GetRottenHearts() +
+				player:GetEternalHearts() + player:GetBoneHearts())
+			return (healthLeft - Amount) <= 0
+		else
+			return (Entity.HitPoints - Amount) <= 0
+		end
 	end
 
 	function Mod:CheckExplosionType(extraData, registeredBomb, checkFor)
@@ -355,7 +366,7 @@ local function InitFunctions()
 		end,
 
 		[Mod.Callbacks.ID.ENTITY_TAKE_EXPLOSION_DMG] = function (callbacks, Entity, Amount, DamageFlags, source, CountdownFrames, player, extraData)
-			for i = 1, #callbacks do --No extra parameters
+			for i = 1, #callbacks do
 				local identificator = callbacks[i].Args[1]
 				local shouldFire = (not identificator) or Mod:ShouldFireStandard(identificator, extraData, source, player)
 
@@ -370,7 +381,7 @@ local function InitFunctions()
 		end,
 
 		[Mod.Callbacks.ID.POST_EXPLOSION_DESTROY_GRID_ROCK] = function (callbacks, gridEnt, effect, bomb, player, extraData)
-			for i = 1, #callbacks do --No extra parameters
+			for i = 1, #callbacks do
 				local limits = callbacks[i].Args
 				local shouldFire = (not limits[1]) or Mod:ShouldFireStandard(limits[1], extraData, effect, player)
 				local shouldFire2 = (not limits[2] or limits[2] == gridEnt:GetType())
@@ -378,7 +389,6 @@ local function InitFunctions()
 
 				if shouldFire and shouldFire2 and shouldFire3 then
 					callbacks[i].Function(BombLib, gridEnt)
-					gridEnt.VarData = 1
 				end
 			end
 		end,
@@ -563,6 +573,8 @@ local function InitFunctions()
 		end
 
 		Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_BOMB_EXPLODE, effect, player, extraData)
+
+		return extraData
 	end
 
 	--#endregion
@@ -593,6 +605,8 @@ local function InitFunctions()
 			}
 
 	        Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_BOMB_EXPLODE, effect, player, extraData)
+
+			return extraData
 	    end
 	end
 
@@ -608,6 +622,8 @@ local function InitFunctions()
 			}
 
 			Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_BOMB_EXPLODE, effect, player, extraData)
+
+			return extraData
 		end
 	end
 
@@ -628,6 +644,8 @@ local function InitFunctions()
 		end
 
 		Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_BOMB_EXPLODE, effect, player, extraData)
+
+		return extraData
 	end
 
 	--#endregion
@@ -646,6 +664,8 @@ local function InitFunctions()
 		end
 
 		Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_BOMB_EXPLODE, effect, player, extraData)
+
+		return extraData
 	end
 
 	--#endregion
@@ -667,6 +687,8 @@ local function InitFunctions()
 		}
 
 		Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_BOMB_EXPLODE, bobsRottenHead, player, extraData)
+
+		return extraData
 	end
 
 	AddCallback(ModCallbacks.MC_POST_EFFECT_INIT, BombLib.DetectBobsRottenHeadtByInit, EffectVariant.SMOKE_CLOUD)
@@ -687,6 +709,8 @@ local function InitFunctions()
 		end
 
 		Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_BOMB_EXPLODE, effect, player, extraData)
+
+		return extraData
 	end
 
 	--#endregion
@@ -722,6 +746,16 @@ local function InitFunctions()
 
 	--#endregion
 
+	function BombLib:InitFunc(effect, spawner, player, func, extraData)
+		local returnedData = func(BombLib, effect, spawner, player)
+
+		if returnedData then --Overwrite extraData
+			return returnedData
+		else
+			return extraData
+		end
+	end
+
 	function BombLib:CustomBombInteractionsInit(effect)
 		local spawner = effect.SpawnerEntity
 
@@ -735,15 +769,18 @@ local function InitFunctions()
 
 		if not player then return end
 
-		BombLib:DetectBombByInit(effect, spawner, player) --Normal Bomb
+		local extraData = {}
 
-		BombLib:DetectKamikazeByInit(effect, spawner) --Kamikaze
+		extraData = BombLib:InitFunc(effect, spawner, player, BombLib.DetectBombByInit, extraData) --Normal Bomb
+
+		extraData = BombLib:InitFunc(effect, spawner, player, BombLib.DetectKamikazeByInit, extraData) --Kamikaze
+
 		--BombLib:DetectHotPotatoByInit(effect) --Hot Potato
-		BombLib:DetectEpicFetusByInit(effect, spawner, player) --Epic Fetus
+		extraData = BombLib:InitFunc(effect, spawner, player, BombLib.DetectEpicFetusByInit, extraData) --Epic Fetus
 		if spawner.Type == EntityType.ENTITY_FAMILIAR then
-			BombLib:DetectBobsBrainByInit(effect, spawner, player) --Bob's Brain
-			BombLib:DetectWarLocustByInit(effect, spawner, player) --War Locust
-			BombLib:DetectBBFByInit(effect, spawner, player) --BBF
+			extraData = BombLib:InitFunc(effect, spawner, player, BombLib.DetectBobsBrainByInit, extraData) --Bob's Brain
+			extraData = BombLib:InitFunc(effect, spawner, player, BombLib.DetectWarLocustByInit, extraData) --War Locust
+			extraData = BombLib:InitFunc(effect, spawner, player, BombLib.DetectBBFByInit, extraData) --BBF
 		end
 
 		local room = game:GetRoom()
@@ -761,11 +798,12 @@ local function InitFunctions()
 
 					if RGONON then
 						if rockEffectIndexes[idx].TimeDoneOn == game:GetFrameCount() then
-							Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_EXPLOSION_DESTROY_GRID_ROCK, gridEnt, effect, spawner, player, {})
+							Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_EXPLOSION_DESTROY_GRID_ROCK, gridEnt, effect, spawner, player, extraData)
 						end
 					else
 						rockEffectIndexes[idx].TimeDoneOn = game:GetFrameCount()
 						rockEffectIndexes[idx].EffectHash = GetPtrHash(effect)
+						rockEffectIndexes[idx].ExtraData = extraData
 					end
 				end
 			end
@@ -782,19 +820,14 @@ local function InitFunctions()
 		source = source:ToBomb()
 
 		if not source then goto continue end
-		if BombLib.BLACKLISTED_VARIANTS[source.Variant] then goto continue end
+		--if BombLib.BLACKLISTED_VARIANTS[source.Variant] then goto continue end
 
-		local WillDie = false
-		if Entity:ToPlayer() then
-			local player = Entity:ToPlayer()
-			local healthLeft = ((player:GetHearts() - player:GetRottenHearts() * 2) + player:GetSoulHearts() + player:GetRottenHearts() +
-				player:GetEternalHearts() + player:GetBoneHearts())
-			WillDie = (healthLeft - Amount) <= 0
-		else
-			WillDie = (Entity.HitPoints - Amount) <= 0
-		end
+		local player = Mod:TryGetPlayer(source)
+
+		if not player then return end
+
 		local extraData = {
-			WillDie = WillDie,
+			WillDie = BombLib:WillEntityDie(Entity, Amount),
 		}
 
 		if Mod:GetBombSize(source) < 2 then --Mini bomb
@@ -802,7 +835,7 @@ local function InitFunctions()
 			extraData.SmallExplosion = true
 		end
 
-		local stop = Mod.Callbacks.FireCallback(Mod.Callbacks.ID.ENTITY_TAKE_EXPLOSION_DMG, Entity, Amount, DamageFlags, source, CountdownFrames, Mod:TryGetPlayer(source), extraData)
+		local stop = Mod.Callbacks.FireCallback(Mod.Callbacks.ID.ENTITY_TAKE_EXPLOSION_DMG, Entity, Amount, DamageFlags, source, CountdownFrames, player, extraData)
 
 		if stop ~= nil then
 			return stop
@@ -829,7 +862,8 @@ local function InitFunctions()
 					if eHash == GetPtrHash(effect) then
 						effect = effect:ToEffect()
 
-						Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_EXPLOSION_DESTROY_GRID_ROCK, gridEnt, effect, effect.SpawnerEntity, Mod:TryGetPlayer(spawner), {})
+						Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_EXPLOSION_DESTROY_GRID_ROCK, gridEnt, effect,
+							effect.SpawnerEntity, Mod:TryGetPlayer(spawner), rockEffectIndexes[idx].ExtraData)
 					end
 				end
 			end

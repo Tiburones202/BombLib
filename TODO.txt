@@ -1,0 +1,5 @@
+TODO:
+    * IMPORATNT: Documentation [X]
+	* 
+
+	* Base game callbacks with modifier as limiters [Later?]
