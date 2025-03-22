@@ -827,7 +827,7 @@ local function InitFunctions()
 		if not player then return end
 
 		local extraData = {
-			WillDie = BombLib:WillEntityDie(Entity, Amount),
+			WillDie = BombLib:WillEntityDie(Entity, Amount)
 		}
 
 		if Mod:GetBombSize(source) < 2 then --Mini bomb

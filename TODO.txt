@@ -1,5 +1,19 @@
 TODO:
-    * IMPORATNT: Documentation [X]
-	* 
+    * IMPORATNT:
+        * Documentation [X]
+	* MID PRIORITY:
+        ** ENTITY_TAKE_EXPLOSION_DMG:
+            *** Kamikaze [X]
+            *** EpicFetus [X]
+            *** WarLocust [X]
+            *** BobsBrain [X]
+            *** BobsRottenHead [?]
+            *** BBF [X]
+            *** HotPotato [?]
 
-	* Base game callbacks with modifier as limiters [Later?]
+        ** POST_EXPLOSION_DESTROY_GRID_ROCK:
+            *** BobsRottenHead [?]
+            *** HotPotato [?]
+
+    * LOW PRIORITY:
+       ** Base game callbacks with modifier as limiters [Later?]
