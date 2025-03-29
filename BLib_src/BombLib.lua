@@ -204,7 +204,7 @@ local function InitFunctions()
 		return extraData["Is" .. checkFor] and not registeredBomb["Ignore" .. checkFor]
 	end
 
-	function Mod:ShouldFireStandard(identificator, extraData, spawnerThing, player, isExplosionCallback)
+	function Mod:ShouldFireStandard(identificator, extraData, spawnerThing, player, spawner, isExplosionCallback)
 		local registeredBomb = Mod.RegisteredBombs[identificator]
 
 		if isExplosionCallback then
@@ -226,10 +226,9 @@ local function InitFunctions()
 		elseif Mod:CheckExplosionType(extraData, registeredBomb, "HotPotato") then
 			return registeredBomb.HasModifier(player)
 		elseif Mod:CheckExplosionType(extraData, registeredBomb, "EpicFetus") then
-			local rng = player:GetCollectibleRNG(CollectibleType.COLLECTIBLE_EPIC_FETUS)
-			if rng:RandomInt(100) > registeredBomb.FetusChance(player.Luck) then return false end
-
-			return registeredBomb.HasModifier(player)
+			local checkFrom = spawner == nil and spawnerThing.SpawnerEntity or spawner
+			print('checking...', checkFrom)
+			return checkFrom:GetData()[identificator]
 		else
 			local bomb
 			if spawnerThing:ToBomb() then
@@ -333,7 +332,7 @@ local function InitFunctions()
 
 			for i = 1, #callbacks do
 				local identificator = callbacks[i].Args[1]
-				local shouldFire = (not identificator) or Mod:ShouldFireStandard(identificator, extraData, effect, player, true)
+				local shouldFire = (not identificator) or Mod:ShouldFireStandard(identificator, extraData, effect, player, _, true)
 
 				if shouldFire then
 					callbacks[i].Function(BombLib, effect, player, extraData)
@@ -383,7 +382,7 @@ local function InitFunctions()
 		[Mod.Callbacks.ID.POST_EXPLOSION_DESTROY_GRID_ROCK] = function (callbacks, gridEnt, effect, spawner, player, extraData)
 			for i = 1, #callbacks do
 				local limits = callbacks[i].Args
-				local shouldFire = (not limits[1]) or Mod:ShouldFireStandard(limits[1], extraData, effect, player)
+				local shouldFire = (not limits[1]) or Mod:ShouldFireStandard(limits[1], extraData, effect, player, spawner)
 				local shouldFire2 = (not limits[2] or limits[2] == gridEnt:GetType())
 				local shouldFire3 = (not limits[3] or limits[3] == gridEnt:GetVariant())
 
@@ -602,8 +601,35 @@ local function InitFunctions()
 
 	--#region Epic Fetus
 
+	BombLib.RocketEffects = {
+		[EffectVariant.ROCKET] = true,
+		[EffectVariant.SMALL_ROCKET] = true,
+	}
+
+	function BombLib:EpicFetusRocketInit(rocket)
+		player = rocket.SpawnerEntity
+
+		if not player then return end
+
+		player = player:ToPlayer()
+
+		if not player then return end
+
+		local rng = player:GetCollectibleRNG(CollectibleType.COLLECTIBLE_EPIC_FETUS)
+		for identifier, bombData in pairs(BombLib.RegisteredBombs) do
+			if bombData.HasModifier(player) then
+				if rng:RandomInt(100) <= bombData.FetusChance(player.Luck) then
+					rocket:GetData()[identifier] = true
+				end
+			end
+		end
+	end
+	for rocket, _ in pairs(BombLib.RocketEffects) do
+		AddCallback(ModCallbacks.MC_POST_EFFECT_INIT, BombLib.EpicFetusRocketInit, EffectVariant.ROCKET)
+	end
+
 	function BombLib:DetectEpicFetusExplosion(spawner)
-		if spawner.Variant == EffectVariant.ROCKET or spawner.Variant == EffectVariant.SMALL_ROCKET then
+		if BombLib.RocketEffects[spawner.Variant] then
 			local extraData = {
 				IsEpicFetus = true,
 			}
@@ -726,10 +752,10 @@ local function InitFunctions()
 					end
 
 					if not rockEffectIndexes[idx].Checked then
-							rockEffectIndexes[idx].TimeDoneOn = game:GetFrameCount()
-							rockEffectIndexes[idx].EffectHash = GetPtrHash(effect)
-							rockEffectIndexes[idx].ExtraData = extraData
-							rockEffectIndexes[idx].Checked = true
+						rockEffectIndexes[idx].TimeDoneOn = game:GetFrameCount()
+						rockEffectIndexes[idx].EffectHash = GetPtrHash(effect)
+						rockEffectIndexes[idx].ExtraData = extraData
+						rockEffectIndexes[idx].Checked = true
 					end
 				end
 			end
@@ -833,6 +859,8 @@ local function InitFunctions()
 
 					Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_EXPLOSION_DESTROY_GRID_ROCK, gridEnt, effect,
 						effect.SpawnerEntity, Mod:TryGetPlayer(effect), rockEffectIndexes[idx].ExtraData)
+
+					break
 				end
 			end
 		end
