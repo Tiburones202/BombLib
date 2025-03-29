@@ -7,13 +7,11 @@ TODO:
 
 	* MID PRIORITY:
         ** ENTITY_TAKE_EXPLOSION_DMG [~]:
-            *** Kamikaze [X]
-            *** EpicFetus [X]
-            *** WarLocust [X]
-            *** BobsBrain [X]
             *** BobsRottenHead [?]
-            *** BBF [X]
             *** HotPotato [?]
+
+        ** Epic Fetus rockets store if they have the modifier with GetData()
+            instead of calculating it when exploding [X]
 
         ** More modifier examples [~]
             ** Using POST_BOMB_EXPLODE [OK] [Sad Bombs Recreation]

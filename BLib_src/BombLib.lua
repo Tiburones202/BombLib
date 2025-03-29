@@ -555,8 +555,9 @@ local function InitFunctions()
 
 	--#region Bomb Explosion
 
-	function BombLib:DetectBombByInit(effect, spawner, player)
+	function BombLib:DetectBombExplosion(spawner)
 		local bomb = spawner:ToBomb()
+
 		if not bomb then return end
 
 		local extraData = {}
@@ -574,24 +575,21 @@ local function InitFunctions()
 	--#region Kamikaze
 
 	function BombLib:UseKamikaze(_, _, player)
-		local pData = player:GetData()
-		pData.BombLibKamikazeUses = 1
+		player:GetData().BombLibKamikazeUsed = true
+
+		BombLib.Scheduler.Schedule(0, function(player) --delay a bit
+			player:GetData().BombLibKamikazeUsed = nil
+		end, {player})
 	end
 
 	AddPriorityCallback(ModCallbacks.MC_PRE_USE_ITEM, CallbackPriority.LATE, BombLib.UseKamikaze, CollectibleType.COLLECTIBLE_KAMIKAZE)
 
-	function BombLib:DetectKamikazeByInit(effect, spawner)
+	function BombLib:DetectKamikazeExplosion(spawner)
 	    local player = spawner:ToPlayer()
 
 	    if not player then return end
 
-		local pData = player:GetData()
-	    if pData.BombLibKamikazeUses then
-	        pData.BombLibKamikazeUses = pData.BombLibKamikazeUses - 1
-	        if pData.BombLibKamikazeUses <= 0 then
-	            pData.BombLibKamikazeUses = nil
-	        end
-
+	    if player:GetData().BombLibKamikazeUsed then
 			local extraData = {
 				IsKamikaze = true
 			}
@@ -604,7 +602,7 @@ local function InitFunctions()
 
 	--#region Epic Fetus
 
-	function BombLib:DetectEpicFetusByInit(effect, spawner, player)
+	function BombLib:DetectEpicFetusExplosion(spawner)
 		if spawner.Variant == EffectVariant.ROCKET or spawner.Variant == EffectVariant.SMALL_ROCKET then
 			local extraData = {
 				IsEpicFetus = true,
@@ -618,7 +616,7 @@ local function InitFunctions()
 
 	--#region Locust of War
 
-	function BombLib:DetectWarLocustByInit(effect, spawner, player)
+	function BombLib:DetectWarLocustExplosion(spawner)
 		if spawner.Variant ~= FamiliarVariant.BLUE_FLY or spawner.SubType ~= 1 then return end
 
 		local extraData = {
@@ -633,7 +631,7 @@ local function InitFunctions()
 
 	--#region Bob's Brain
 
-	function BombLib:DetectBobsBrainByInit(effect, spawner, player)
+	function BombLib:DetectBobsBrainExplosion(spawner)
 		if spawner.Variant ~= FamiliarVariant.BOBS_BRAIN then return end
 
 		local extraData = {
@@ -670,7 +668,7 @@ local function InitFunctions()
 
 	--#region BBF
 
-	function BombLib:DetectBBFByInit(effect, spawner, player)
+	function BombLib:DetectBBFExplosion(spawner)
 		if spawner.Variant ~= FamiliarVariant.BBF then return end
 
 		local extraData = {
@@ -738,8 +736,8 @@ local function InitFunctions()
 		end
 	end
 
-	function BombLib:TypeChecker(effect, spawner, player, func, extraData)
-		local returnedData = func(BombLib, effect, spawner, player)
+	function BombLib:TypeChecker(spawner, func, extraData)
+		local returnedData = func(BombLib, spawner)
 
 		if returnedData then --Overwrite extraData
 			for k,v in pairs(returnedData) do
@@ -765,13 +763,13 @@ local function InitFunctions()
 			IsBomberBoy = not Mod:IsNotBomberBoyExplosion(effect, spawner)
 		}
 
-		extraData = BombLib:TypeChecker(effect, spawner, player, BombLib.DetectBombByInit, extraData) --Normal Bomb
-		extraData = BombLib:TypeChecker(effect, spawner, player, BombLib.DetectKamikazeByInit, extraData) --Kamikaze
-		extraData = BombLib:TypeChecker(effect, spawner, player, BombLib.DetectEpicFetusByInit, extraData) --Epic Fetus
+		extraData = BombLib:TypeChecker(spawner, BombLib.DetectBombExplosion, extraData) --Normal Bomb
+		extraData = BombLib:TypeChecker(spawner, BombLib.DetectKamikazeExplosion, extraData) --Kamikaze
+		extraData = BombLib:TypeChecker(spawner, BombLib.DetectEpicFetusExplosion, extraData) --Epic Fetus
 		if spawner.Type == EntityType.ENTITY_FAMILIAR then
-			extraData = BombLib:TypeChecker(effect, spawner, player, BombLib.DetectBobsBrainByInit, extraData) --Bob's Brain
-			extraData = BombLib:TypeChecker(effect, spawner, player, BombLib.DetectWarLocustByInit, extraData) --War Locust
-			extraData = BombLib:TypeChecker(effect, spawner, player, BombLib.DetectBBFByInit, extraData) --BBF
+			extraData = BombLib:TypeChecker(spawner, BombLib.DetectBobsBrainExplosion, extraData) --Bob's Brain
+			extraData = BombLib:TypeChecker(spawner, BombLib.DetectWarLocustExplosion, extraData) --War Locust
+			extraData = BombLib:TypeChecker(spawner, BombLib.DetectBBFExplosion, extraData) --BBF
 		end
 
 		if not extraData.successful then return end --No explosion that counts, do nothing.
@@ -784,29 +782,31 @@ local function InitFunctions()
 	AddCallback(ModCallbacks.MC_POST_EFFECT_INIT, BombLib.CustomBombInteractionsInit, EffectVariant.BOMB_EXPLOSION)
 
 	function BombLib:PostEntityTakeExplosionDamage(Entity, Amount, DamageFlags, Source, CountdownFrames)
-		local source = Source.Entity
+		local spawner = Source.Entity
 
-		if not source then goto continue end
+		if not spawner then goto continue end
 
-		local player = Mod:TryGetPlayer(source)
+		local player = Mod:TryGetPlayer(spawner)
 
-		if not player then return end
-
-		source = source:ToBomb()
-
-		if not source then goto continue end
-		--if BombLib.BLACKLISTED_VARIANTS[source.Variant] then goto continue end
+		if not player then goto continue end
 
 		local extraData = {
-			WillDie = BombLib:WillEntityDie(Entity, Amount)
+			WillDie = BombLib:WillEntityDie(Entity, Amount),
+			--IsBomberBoy = not Mod:IsNotBomberBoyExplosion(effect, spawner)
 		}
 
-		if Mod:GetBombSize(source) < 2 then --Mini bomb
-			extraData.IsSmallBomb = true
-			extraData.SmallExplosion = true
+		extraData = BombLib:TypeChecker(spawner, BombLib.DetectBombExplosion, extraData) --Normal Bomb
+		extraData = BombLib:TypeChecker(spawner, BombLib.DetectKamikazeExplosion, extraData) --Kamikaze
+		extraData = BombLib:TypeChecker(spawner, BombLib.DetectEpicFetusExplosion, extraData) --Epic Fetus
+		if spawner.Type == EntityType.ENTITY_FAMILIAR then
+			extraData = BombLib:TypeChecker(spawner, BombLib.DetectBobsBrainExplosion, extraData) --Bob's Brain
+			extraData = BombLib:TypeChecker(spawner, BombLib.DetectWarLocustExplosion, extraData) --War Locust
+			extraData = BombLib:TypeChecker(spawner, BombLib.DetectBBFExplosion, extraData) --BBF
 		end
 
-		local stop = Mod.Callbacks.FireCallback(Mod.Callbacks.ID.ENTITY_TAKE_EXPLOSION_DMG, Entity, Amount, DamageFlags, source, CountdownFrames, player, extraData)
+		if not extraData.successful then goto continue end --No explosion that counts, do nothing.
+
+		local stop = Mod.Callbacks.FireCallback(Mod.Callbacks.ID.ENTITY_TAKE_EXPLOSION_DMG, Entity, Amount, DamageFlags, spawner, CountdownFrames, player, extraData)
 
 		if stop ~= nil then
 			return stop
