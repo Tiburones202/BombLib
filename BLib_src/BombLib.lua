@@ -14,7 +14,7 @@ local CACHED_CALLBACKS
 local CACHED_BOMBS
 local CACHED_MOD_CALLBACKS
 
-local RGON_AVOID = false
+local RGON_AVOID = true
 local RGONON = (REPENTOGON ~= nil) and not RGON_AVOID
 
 local function InitMod()
@@ -728,36 +728,28 @@ local function InitFunctions()
 					end
 
 					if not rockEffectIndexes[idx].Checked then
-						if RGONON then
-							print(rockEffectIndexes[idx].TimeDoneOn, game:GetFrameCount())
-							if rockEffectIndexes[idx].TimeDoneOn == game:GetFrameCount() then
-								Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_EXPLOSION_DESTROY_GRID_ROCK, gridEnt, effect, spawner, player, extraData)
-								rockEffectIndexes[idx].Checked = true
-							end
-						else
 							rockEffectIndexes[idx].TimeDoneOn = game:GetFrameCount()
 							rockEffectIndexes[idx].EffectHash = GetPtrHash(effect)
 							rockEffectIndexes[idx].ExtraData = extraData
 							rockEffectIndexes[idx].Checked = true
-						end
 					end
 				end
 			end
 		end
 	end
 
-	function BombLib:InitFunc(effect, spawner, player, func, extraData)
+	function BombLib:TypeChecker(effect, spawner, player, func, extraData)
 		local returnedData = func(BombLib, effect, spawner, player)
 
 		if returnedData then --Overwrite extraData
 			for k,v in pairs(returnedData) do
 				extraData[k] = v
 			end
+
 			extraData.successful = true
-			return extraData
-		else
-			return extraData
 		end
+
+		return extraData
 	end
 
 	function BombLib:CustomBombInteractionsInit(effect)
@@ -773,13 +765,13 @@ local function InitFunctions()
 			IsBomberBoy = not Mod:IsNotBomberBoyExplosion(effect, spawner)
 		}
 
-		extraData = BombLib:InitFunc(effect, spawner, player, BombLib.DetectBombByInit, extraData) --Normal Bomb
-		extraData = BombLib:InitFunc(effect, spawner, player, BombLib.DetectKamikazeByInit, extraData) --Kamikaze
-		extraData = BombLib:InitFunc(effect, spawner, player, BombLib.DetectEpicFetusByInit, extraData) --Epic Fetus
+		extraData = BombLib:TypeChecker(effect, spawner, player, BombLib.DetectBombByInit, extraData) --Normal Bomb
+		extraData = BombLib:TypeChecker(effect, spawner, player, BombLib.DetectKamikazeByInit, extraData) --Kamikaze
+		extraData = BombLib:TypeChecker(effect, spawner, player, BombLib.DetectEpicFetusByInit, extraData) --Epic Fetus
 		if spawner.Type == EntityType.ENTITY_FAMILIAR then
-			extraData = BombLib:InitFunc(effect, spawner, player, BombLib.DetectBobsBrainByInit, extraData) --Bob's Brain
-			extraData = BombLib:InitFunc(effect, spawner, player, BombLib.DetectWarLocustByInit, extraData) --War Locust
-			extraData = BombLib:InitFunc(effect, spawner, player, BombLib.DetectBBFByInit, extraData) --BBF
+			extraData = BombLib:TypeChecker(effect, spawner, player, BombLib.DetectBobsBrainByInit, extraData) --Bob's Brain
+			extraData = BombLib:TypeChecker(effect, spawner, player, BombLib.DetectWarLocustByInit, extraData) --War Locust
+			extraData = BombLib:TypeChecker(effect, spawner, player, BombLib.DetectBBFByInit, extraData) --BBF
 		end
 
 		if not extraData.successful then return end --No explosion that counts, do nothing.
@@ -832,19 +824,15 @@ local function InitFunctions()
 			rockEffectIndexes[idx] = {}
 		end
 
-		print(game:GetFrameCount())
-		if RGONON then
-			rockEffectIndexes[idx].TimeDoneOn = game:GetFrameCount()
-		else
-			if rockEffectIndexes[idx].TimeDoneOn == game:GetFrameCount() then
-				local eHash = rockEffectIndexes[idx].EffectHash
-				for _, effect in ipairs(Isaac.FindByType(EntityType.ENTITY_EFFECT)) do
-					if eHash == GetPtrHash(effect) then
-						effect = effect:ToEffect()
+		--print(game:GetFrameCount())
+		if rockEffectIndexes[idx].TimeDoneOn == game:GetFrameCount() then
+			local eHash = rockEffectIndexes[idx].EffectHash
+			for _, effect in ipairs(Isaac.FindByType(EntityType.ENTITY_EFFECT)) do
+				if eHash == GetPtrHash(effect) then
+					effect = effect:ToEffect()
 
-						Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_EXPLOSION_DESTROY_GRID_ROCK, gridEnt, effect,
-							effect.SpawnerEntity, Mod:TryGetPlayer(effect), rockEffectIndexes[idx].ExtraData)
-					end
+					Mod.Callbacks.FireCallback(Mod.Callbacks.ID.POST_EXPLOSION_DESTROY_GRID_ROCK, gridEnt, effect,
+						effect.SpawnerEntity, Mod:TryGetPlayer(effect), rockEffectIndexes[idx].ExtraData)
 				end
 			end
 		end
@@ -873,9 +861,16 @@ local function InitFunctions()
 				end
 			end
 		end
+
 		AddCallback(ModCallbacks.MC_POST_UPDATE, runGridUpdate)
 	else
-		AddCallback(ModCallbacks.MC_POST_GRID_ROCK_DESTROY, BombLib.DestroyGrid)
+		local function destroyGridRockRGON(_, gridEnt)
+			BombLib.Scheduler.Schedule(0, function(gridEnt) --delay a bit
+				BombLib:DestroyGrid(gridEnt)
+			end, {gridEnt})
+		end
+
+		AddCallback(ModCallbacks.MC_POST_GRID_ROCK_DESTROY, destroyGridRockRGON)
 	end
 
 	local function ResetEffectsBombLib()
@@ -923,10 +918,8 @@ InitFunctions()
 
 --#region Scheduler
 
---[[
-local function schedulerInit()
+local function schedulerInit() --Taken from Epiphany
 	local scheduler = {}
-	local Mod = BombLib
 	scheduler.ScheduleData = {}
 	---
 	---@param delay integer
@@ -961,7 +954,7 @@ local function schedulerInit()
 	return scheduler
 end
 
-BombLib.Scheduler = schedulerInit()]]
+BombLib.Scheduler = schedulerInit()
 
 --#endregion
 

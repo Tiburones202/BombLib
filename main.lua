@@ -110,6 +110,11 @@ function SadBombs2:Help(gridEnt, _, _, player)
 end
 BombLibCallbacks.AddCallback(BombLibCallbacks.ID.POST_EXPLOSION_DESTROY_GRID_ROCK, SadBombs2.Help, "[BombLib] Sad Bombs")
 
+function SadBombs2:Help2()
+    print('hit')
+end
+BombLibCallbacks.AddCallback(BombLibCallbacks.ID.ENTITY_TAKE_EXPLOSION_DMG, SadBombs2.Help2, "[BombLib] Sad Bombs")
+
 --lag the game
 --[[
 SadBombs2:AddCallback(ModCallbacks.MC_POST_RENDER, function ()
