@@ -166,6 +166,17 @@ local function InitFunctions()
 		end
 	end
 
+	--- Gives the player's luck accounting for teardrop charm [Taken from Epiphany, ty]
+	---@param player EntityPlayer
+	---@return integer
+	function Mod:GetTearModifierLuck(player)
+		local luck = player.Luck
+		if player:HasTrinket(TrinketType.TRINKET_TEARDROP_CHARM) then
+			luck = luck + (player:GetTrinketMultiplier(TrinketType.TRINKET_TEARDROP_CHARM) * 4)
+		end
+		return luck
+	end
+
 	---Explosion will (almsot) always be in the same position
 	function Mod:IsNotBomberBoyExplosion(effect, spawner)
 		return (effect.Position.X == spawner.Position.X) and (effect.Position.Y == spawner.Position.Y)
@@ -518,7 +529,7 @@ local function InitFunctions()
 			    if bomb.IsFetus then
 			        local rng = bomb:GetDropRNG()
 
-			        if rng:RandomInt(100) > bombData.FetusChance(player.Luck) then
+			        if rng:RandomInt(100) > bombData.FetusChance(Mod:GetTearModifierLuck(player), player) then
 			            goto continue
 			        end
 			    end
@@ -618,7 +629,7 @@ local function InitFunctions()
 		local rng = player:GetCollectibleRNG(CollectibleType.COLLECTIBLE_EPIC_FETUS)
 		for identifier, bombData in pairs(BombLib.RegisteredBombs) do
 			if bombData.HasModifier(player) then
-				if rng:RandomInt(100) <= bombData.FetusChance(player.Luck) then
+				if rng:RandomInt(100) <= bombData.FetusChance(Mod:GetTearModifierLuck(player), player) then
 					rocket:GetData()[identifier] = true
 				end
 			end
