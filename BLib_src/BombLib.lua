@@ -636,7 +636,7 @@ local function InitFunctions()
 		end
 	end
 	for rocket, _ in pairs(BombLib.RocketEffects) do
-		AddCallback(ModCallbacks.MC_POST_EFFECT_INIT, BombLib.EpicFetusRocketInit, EffectVariant.ROCKET)
+		AddCallback(ModCallbacks.MC_POST_EFFECT_INIT, BombLib.EpicFetusRocketInit, rocket)
 	end
 
 	function BombLib:DetectEpicFetusExplosion(spawner)
